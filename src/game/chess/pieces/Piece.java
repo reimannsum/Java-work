@@ -1,11 +1,16 @@
 package game.chess.pieces;
 
-public class Piece implements Comparable<Piece>{
-	private Colors color;
+import java.util.*;
+
+public class Piece{
+	private Color color;
 	private Type type;
+	private int[] pos = {-1,-1};
 	static int blackCount;
 	static int whiteCount;
-	private enum Colors { Black, White };
+	protected char representation;
+	public enum Color { Black, White };
+	public enum Moves { North, Northeast, East, Southeast, South, Southwest, West, Northwest };
 	public enum Type {
 		Pawn('p', 0.5),
 		Rook('r', 5),
@@ -18,7 +23,8 @@ public class Piece implements Comparable<Piece>{
 		private double points;
 		private char representation;
 		Type(char representation, double points) {
-			this.representation = representation;	
+			this.representation = representation;
+			this.points = points;
 		}
 		char getRepresentation() {
 			return representation;
@@ -27,27 +33,29 @@ public class Piece implements Comparable<Piece>{
 			return points;
 		}
 	};
-	public static final String BLACK = "black";
-	public static final String WHITE = "white";
-	private double strength = 0;
+	private double strength = 0.0;
 	
 
-	private Piece(Type type){
+	protected Piece(Type type){
 		this.type = type;
 		this.strength = type.getPoints();
 	}
-	private Piece() {
+	//	Constructor for SubClasses
+	protected Piece(Color color) {
+		this.color = color;
+	}
+	protected Piece() {
 		type = Type.NO_PIECE;
 	}
 	public static Piece createWhite(Type type) {
 		Piece piece =  new Piece(type);
-		piece.color = Colors.White;
+		piece.color = Color.White;
 		incrementWhiteCount();
 		return piece;
 	}
 	public static Piece createBlack(Type type) {
 		Piece piece =  new Piece(type);
-		piece.color = Colors.Black;
+		piece.color = Color.Black;
 		incrementBlackCount();
 		return piece;
 	}
@@ -95,19 +103,16 @@ public class Piece implements Comparable<Piece>{
 	
 //	Getter Methods
 	public boolean isWhite() {
-		return (this.color == Colors.White);
+		return (this.color == Color.White);
 	}
 	public boolean isBlack() {
-		return (this.color == Colors.Black);
+		return (this.color == Color.Black);
 	}
 	public boolean isEmpty() {
 		return (this.type == Type.NO_PIECE);
 	}
-	public String getColor() {
-		if (color == Colors.Black)
-			return BLACK;
-		else
-			return WHITE;
+	public Color getColor() {
+		return this.color;
 	}
 	public Type getType() {
 		return type;
@@ -119,10 +124,16 @@ public class Piece implements Comparable<Piece>{
 		return blackCount;
 	}
 	public double getStrength() {
-		return type.getPoints();
+		return strength;
 	}
 	public void setStrength(double value) {
 		this.strength = value;
+	}
+	public int[] getPosition() {
+		return this.pos;
+	}
+	public void setPosition(int[] position) {
+		this.pos = position;
 	}
 	
 	
@@ -153,9 +164,76 @@ public class Piece implements Comparable<Piece>{
 	private static void incrementBlackCount() {
 		blackCount++;
 	}
-	public int compareTo(Piece that) {
-		return Integer.compare(this.getStrength(), that.getStrength());
+	void decrementWhiteCount() {
+		whiteCount--;
+	}
+
+	void decrementBlackCount() {
+		blackCount--;
+	}
+	// @TODO
+	List<String> getPossibleMoves(){
+		List<String> moves = new ArrayList<String>();
+		
+		return null;
 	}
 	
+	public int moveLength(int[] start, int[] end) {
+		int rankMove = start[0] - end[0];
+		int fileMove = start[1] - end[1];
+		return (int) (Math.pow(rankMove, 2) + Math.pow(fileMove, 2));
+	}
+	
+	Moves moveDirection(int[] start, int[] end) {
+		int rankMove = start[0] - end[0];
+		int fileMove = start[1] - end[1];
+		int[] directionVector = new int[2];
+		if (rankMove > 0)
+			directionVector[1] = 1;
+		if (rankMove < 0)
+			directionVector[1] = -1;
+		if (fileMove > 0)
+			directionVector[0] = 1;
+		if (fileMove < 0)
+			directionVector[0] = -1;
+		return getDirection(directionVector);
+	}
+	
+	Moves getDirection(int[] vector) {
+		switch(vector[0]) {
+		//		moving along the same file
+		case 0:
+			switch(vector[1]) {
+			case 1:
+				return Moves.North;
+			case -1:
+				return Moves.South;
+			}
+			break;
+		//		moving to higher letters
+		case 1:
+			switch(vector[1]) {
+			case 1:
+				return Moves.Northeast;
+			case -1:
+				return Moves.Southeast;
+			default:
+				return Moves.East;
+			}
+		//		Moving to lower letters
+		case -1:
+			switch(vector[1]) {
+			case 1:
+				return Moves.Northwest;
+			case -1:
+				return Moves.Southwest;
+			default:
+				return Moves.West;
+			}
+		default:
+			return null;
+		}
+		return null;
+	}
 
 }

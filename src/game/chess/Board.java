@@ -10,11 +10,14 @@ import game.chess.pieces.*;
  *
  */
 public class Board {
-	private final String FILE = "abcdefgh";
-	List<Piece> pieces;
-	Piece[][] boardState;
-	static int blackCount;
-	static int whiteCount;
+	private final static String FILE = "abcdefgh";
+	private List<Piece> pieces;
+	/**
+	 * boardState [rank] [file]
+	 */
+	private Piece[][] boardState;
+	private int blackCount;
+	private int whiteCount;
 	
 	
 	
@@ -31,11 +34,13 @@ public class Board {
 		for (int file = 0; file < 8; file++) {
 			Piece whiteMainRankPiece = Piece.createWhite(mainRank[file]);
 			pieces.add(whiteMainRankPiece);
+			incrementWhiteCount();
 			boardState[0][file] = whiteMainRankPiece;
 			
 			Piece whitePawn = Piece.createWhitePawn();
 			pieces.add(whitePawn);
 			boardState[1][file] = whitePawn;
+			incrementWhiteCount();
 			
 			boardState[2][file] = Piece.noPiece();
 			boardState[3][file] = Piece.noPiece();
@@ -45,14 +50,27 @@ public class Board {
 			Piece blackPawn = Piece.createBlackPawn();
 			pieces.add(blackPawn);
 			boardState[6][file] = blackPawn;
+			incrementBlackCount();
 			
 			Piece blackMainRankPiece = Piece.createBlack( mainRank[file]);
 			pieces.add(blackMainRankPiece);
 			boardState[7][file] = blackMainRankPiece;
+			incrementBlackCount();
 		}
 	}
 	
 	
+	public void clear() {
+		resetCount();
+		Piece.resetCount();
+		pieces = new ArrayList<Piece>();
+		for(int i = 0;i < 8;i++) {
+			for(int j = 0;j < 8;j++) {
+				boardState[i][j] = Piece.noPiece();
+			}
+		}
+	}
+
 	/**
 	 * @param piece  adds a Piece object to the list of pieces on the board
 	 */
@@ -63,19 +81,43 @@ public class Board {
 			incrementWhiteCount();
 		pieces.add(piece);
 	}
-	public Piece getPiece(String place) {
-		int[] index = getPosition(place);
-		return boardState[index[0]][index[1]];
+	public String print() {
+		StringBuilder buffer = new StringBuilder();
+		// Start by printing the far side of the board so it looks like you were sitting in white's seat
+		for (int i = 7; i >= 0; i--) {
+			for(int j = 0;j < 8;j++) {
+			buffer.append(boardState[i][j].print());
+			buffer.append(" ");
+				
+			}
+			//	and the rank number
+			buffer.append(i+1);
+			buffer.append(util.StringUtil.NEWLINE);
+		}
+		//	Add the file letters
+		for(int i = 0; i < 8; i++) {
+			buffer.append(FILE.charAt(i));
+			buffer.append(' ');
+		}
+		buffer.append('+');
+		buffer.append(util.StringUtil.NEWLINE);
+		
+		return buffer.toString();
 	}
 	public int pieceCount() {
 		return pieces.size();
 	}
-	public int getNumberOf(String color, Piece.Type type) {
+
+	public int getNumberOf(Piece.Color color, Piece.Type type) {
 		int count = 0;
-		if (Piece.WHITE.equals(color))
+		switch(color) {
+		case White:
 			count = countWhite(type);
-		else
+			break;
+		case Black:
 			count = countBlack(type);
+			break;
+		}
 		return count;
 	}
 	private int countWhite(Piece.Type type) {
@@ -96,31 +138,12 @@ public class Board {
 		}
 		return count;
 	}
-	public List<Piece> getAllPieces(){
-		return pieces;
-	}
-	public String print() {
-		StringBuilder buffer = new StringBuilder();
-		// Start by printing the far side of the board so it looks like you were sitting in white's seat
-		for (int i = 7; i >= 0; i--) {
-			for(int j = 0;j < 8;j++) {
-			buffer.append(boardState[i][j].print());
-			buffer.append(" ");
-				
-			}
-			buffer.append(i+1);
-			buffer.append(util.StringUtil.NEWLINE);
-		}
-		for(int i = 0; i < 8; i++) {
-			buffer.append(FILE.charAt(i));
-			buffer.append(' ');
-		}
-		buffer.append('+');
-		buffer.append(util.StringUtil.NEWLINE);
-		
-		return buffer.toString();
-	}
 	
+	/**
+	 * This is visible as the strength of a pawn is not modified as they move, this is more visibility than I would like for this method 
+	 * @param file
+	 * @return
+	 */
 	List<Piece> getFile(int file) {
 		List<Piece> activePieces = new ArrayList<Piece>();
 		for (int i = 0; i < 8; i++) {
@@ -130,77 +153,111 @@ public class Board {
 		}
 		return activePieces;
 	}
-	public double whiteStrength() {
-		double strength = 0.0;
-		for (int i = 0; i < 8; i++) { // proccessing file by file
-			List<Piece> piecesInFile = getFile(i);
-			List<Piece> whitePieces = new ArrayList<Piece>();
-			for (Piece piece : piecesInFile) 
-				if(piece.isWhite())
-					whitePieces.add(piece);
-			strength += strengthPerFile(whitePieces);
-		}
-		return strength;
-	}
-	public double blackStrength() {
-		double strength = 0.0;
-		for (int i = 0; i < 8; i++) { // proccessing file by file
-			List<Piece> piecesInFile = getFile(i);
-			List<Piece> blackPieces = new ArrayList<Piece>();
-			for (Piece piece : piecesInFile) 
-				if(piece.isBlack())
-					blackPieces.add(piece);
-			strength += strengthPerFile(blackPieces);
-		}
-		return strength;
+	
+	List<Piece> getRank(int rank){
+		List<Piece> activePieces = new ArrayList<Piece>();
+		for(Piece piece: boardState[rank])
+			if(!piece.isEmpty())
+				activePieces.add(piece);
+		return activePieces;
 	}
 	
-	private double strengthPerFile(List<Piece> file) {
-		boolean arePawns = false;
-		double strength = 0.0;
-		for (Piece piece : file) {
-			strength += piece.getType().getPoints();
-		}
-		return strength;
-	}
 	
-	public void clear() {
-		Piece.resetCount();
-		pieces = new ArrayList<Piece>();
-		for(int i = 0;i < 8;i++) {
-			for(int j = 0;j < 8;j++) {
-				boardState[i][j] = Piece.noPiece();
-			}
-		}
+	 void resetCount() {
+		resetWhiteCount();
+		resetBlackCount();
 	}
-	
-	public boolean  placePiece(Piece piece, String square) {
-		if (!getPiece(square).isEmpty())
-			return false;
-		int[] index = getPosition(square);
-		boardState[index[0]][index[1]] = piece;
-		addPiece(piece);
-		return true;
+	 private void resetWhiteCount() {
+		whiteCount = 0;
 	}
-
-	static void incrementWhiteCount() {
+	 private void resetBlackCount() {
+		blackCount = 0;
+	}
+	private void incrementWhiteCount() {
 		whiteCount++;
 	}
-	static void incrementBlackCount() {
+	private void decrementWhiteCount() {
+		whiteCount--;
+	}
+	private void incrementBlackCount() {
 		blackCount++;
 	}
-	static int getWhiteCount() {
+	private void decrementBlackCount() {
+		blackCount--;
+	}
+	 int getWhiteCount() {
 		return whiteCount;
 	}
-	static int getBlackCount() {
+	 int getBlackCount() {
 		return blackCount;
 	}
-	private int[] getPosition(String place) {
+	/**
+	 * returns null of not a valid board position, otherwise returns indexes for the board position array
+	 * @param place
+	 * @return [int rank, int file]
+	 */
+	public static int[] getPosition(String place) {
 		int[] index = new int[2];
 		place = place.toLowerCase();
 		index[1] = FILE.indexOf(place.charAt(0));
 		index[0] = Integer.parseUnsignedInt(place.substring(1))-1;
+		if (0 > index[0] ||index[0] > 7)
+			return null;	// if Rank is off board
+		if (index[1] == -1)
+			return null;	// if File is off board
 		return index;
+	}
+	public static String getSquare(int[] index) {
+		if (0 > index[0] ||index[0] > 7)
+			return null;	// if Rank is off board
+		if (index[1] == -1)
+			return null;	// if File is off board
+		StringBuilder square = new StringBuilder();
+		square.append(FILE.charAt(index[1]));
+		square.append(index[0]+1);
+		return square.toString();
+	}
+	public Piece getPiece(String square) {
+		int[] index = getPosition(square);
+		return boardState[index[0]][index[1]];
+	}
+
+	public boolean  put(Piece piece, String square) {
+		if (!getPiece(square).isEmpty())
+			return false;
+		int[] index = getPosition(square);
+		piece.setPosition(index);
+		boardState[index[0]][index[1]] = piece;
+		addPiece(piece);
+		return true;
+	}
+	public boolean removePiece(String square) {
+		Piece piece = getPiece(square);
+		if (piece.isEmpty())
+			return false;
+		if (piece.isBlack())
+			decrementBlackCount();
+		if (piece.isWhite())
+			decrementWhiteCount();
+		pieces.remove(pieces.indexOf(piece));
+		int[] position = getPosition(square);
+		boardState[position[0]][position[1]] = Piece.noPiece();
+		return true;
+	}
+
+	/**
+	 * This represents physically moving a piece on the board. Any piece at the end position is replaced.
+	 * @param start
+	 * @param end
+	 */
+	public void movePiece(String start, String end) {
+		int[] newPosition = getPosition(end);
+		int[] startingPoint = getPosition(start);
+		Piece movedPiece = getPiece(start);
+		
+		boardState[newPosition[0]][newPosition[1]] = movedPiece;
+		boardState[startingPoint[0]][startingPoint[1]] = Piece.noPiece();
+		
 	}
 	
 
